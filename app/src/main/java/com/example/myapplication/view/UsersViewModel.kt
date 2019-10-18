@@ -18,9 +18,12 @@ class UsersViewModel : ViewModel() {
 
     private val compositeDiasposable = CompositeDisposable()
 
+    private var hasMoreData = true
+    private var isLoading = false;
+
     private val users: MutableLiveData<List<User>> by lazy {
         MutableLiveData<List<User>>(mutableListOf()).also {
-            loadUsers()
+            loadUsers(0)
         }
     }
 
@@ -29,8 +32,9 @@ class UsersViewModel : ViewModel() {
     }
 
 
-    private fun loadUsers() {
-        this.compositeDiasposable += api.getUsers().subscribeOn(Schedulers.io())
+    private fun loadUsers(offset: Int) {
+        isLoading = true
+        this.compositeDiasposable += api.getUsers(offset).subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribeWith(object : DisposableObserver<UsersResponse>(),
                 SingleObserver<UsersResponse> {
@@ -38,20 +42,32 @@ class UsersViewModel : ViewModel() {
                     val currentUsers = users.value!!
                     val newUserList = currentUsers + t.data.users
                     users.postValue(newUserList)
+                    hasMoreData = t.data.has_more
+                    isLoading = false
                 }
 
                 override fun onComplete() {
+                    isLoading = false
                 }
 
                 override fun onNext(t: UsersResponse) {
-                    Log.d("users", t.toString())
+                    isLoading = false
                 }
 
                 override fun onError(e: Throwable) {
                     e.printStackTrace()
+                    isLoading = false
+                    hasMoreData = false
                 }
 
             })
+    }
+
+    fun loadMore() {
+        val currentOffset = users.value?.count()
+        if (currentOffset != null && hasMoreData && !isLoading) {
+            loadUsers(currentOffset)
+        }
     }
 
     override fun onCleared() {

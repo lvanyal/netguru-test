@@ -16,6 +16,7 @@ import android.util.DisplayMetrics
 
 class UsersActivity : AppCompatActivity() {
 
+    private val SCROLL_LOAD_MORE_TRESHHOLD = 3
     private val usersAdapter = UsersAdapter();
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,12 +27,26 @@ class UsersActivity : AppCompatActivity() {
         windowManager.defaultDisplay.getMetrics(displayMetrics)
         usersAdapter.width = displayMetrics.widthPixels
 
-        main_users_list.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
-        main_users_list.adapter = usersAdapter
-
         val model = ViewModelProvider(this)[UsersViewModel::class.java]
         model.getUsers().observe(this, Observer<List<User>> { users ->
             usersAdapter.submitList(users)
         })
+
+        main_users_list.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
+        main_users_list.adapter = usersAdapter
+        main_users_list.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                val totalItemCount = recyclerView.layoutManager!!.itemCount
+                val firstVisibleItem =
+                    (recyclerView.layoutManager as LinearLayoutManager).findLastVisibleItemPosition()
+                if (totalItemCount - firstVisibleItem <= SCROLL_LOAD_MORE_TRESHHOLD) {
+                    model.loadMore()
+                }
+            }
+
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+            }
+        })
+
     }
 }
